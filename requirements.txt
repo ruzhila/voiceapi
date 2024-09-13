@@ -1,0 +1,7 @@
+PyAudio == 0.2.14
+sherpa-onnx == 1.10.24
+soundfile == 0.12.1
+fastapi == 0.114.1
+uvicorn == 0.30.6
+scipy  == 1.14.1
+numpy == 1.26.4
