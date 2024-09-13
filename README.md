@@ -3,7 +3,7 @@
 ## Download models
 all models are stored in the `models` directory
 Only download the models you need. default models are:
-- asr models: `sherpa-onnx-paraformer-trilingual-zh-cantonese-en`
+- asr models: `sherpa-onnx-streaming-paraformer-bilingual-zh-en`
 - tts models: `vits-melo-tts-zh_en`
 
 

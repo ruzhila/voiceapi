@@ -43,10 +43,7 @@ const demoapp = {
     async doasr() {
         const audioConstraints = {
             video: false,
-            audio: {
-                noiseSuppression: true,
-                echoCancellation: true
-            }
+            audio: true,
         };
 
         const mediaStream = await navigator.mediaDevices.getUserMedia(audioConstraints);
