@@ -1,7 +1,11 @@
 const demoapp = {
-    text: '您好，有什么我可以帮助您的吗？',
+    text: 'Hello, how can I help you ?',
     recording: false,
     asrWS: null,
+    currentText: null,
+    disabled: false,
+    elapsedTime: null,
+    logs: [{ idx: 0, text: 'Happily here at ruzhila.cn.' }],
     async init() {
     },
     async dotts() {
@@ -15,6 +19,7 @@ const demoapp = {
         const playNode = new AudioWorkletNode(audioContext, 'play-audio-processor');
         playNode.connect(audioContext.destination);
 
+        this.disabled = true;
         ws.onmessage = async (e) => {
             if (e.data instanceof Blob) {
                 e.data.arrayBuffer().then((arrayBuffer) => {
@@ -26,7 +31,8 @@ const demoapp = {
                     playNode.port.postMessage({ message: 'audioData', audioData: float32Array });
                 });
             } else {
-                console.log(e.data)
+                this.elapsedTime = JSON.parse(e.data)?.elapsed;
+                this.disabled = false;
             }
         }
     },
@@ -38,6 +44,11 @@ const demoapp = {
         this.asrWS.close();
         this.asrWS = null;
         this.recording = false;
+        if (this.currentText) {
+            this.logs.push({ idx: this.logs.length + 1, text: this.currentText });
+        }
+        this.currentText = null;
+
     },
 
     async doasr() {
@@ -49,12 +60,25 @@ const demoapp = {
         const mediaStream = await navigator.mediaDevices.getUserMedia(audioConstraints);
 
         const ws = new WebSocket('/asr');
+        let currentMessage = '';
+
         ws.onopen = () => {
+            this.logs = [];
         };
 
         ws.onmessage = (e) => {
-            console.log(e.data);
-        }
+            const data = JSON.parse(e.data);
+            const { text, finished, idx } = data;
+
+            currentMessage = text;
+            this.currentText = text
+
+            if (finished) {
+                this.logs.push({ text: currentMessage, idx: idx });
+                currentMessage = '';
+                this.currentText = null
+            }
+        };
 
         let audioContext = new AudioContext({ sampleRate: 16000 })
         await audioContext.audioWorklet.addModule('./audio_process.js')

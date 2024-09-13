@@ -31,9 +31,28 @@
         .checkbox { @apply ml-2 lg:ml-4 border focus:outline-none ring-0 focus:ring-gray-800 text-gray-900 }
         .dash{ @apply border border-dashed border-zinc-200 flex flex-grow }
 
-        .button { @apply hover:bg-opacity-90 text-white font-bold py-1.5 px-6 rounded-full }
+        .button { @apply hover:bg-opacity-90 text-white font-bold py-1.5 px-6 rounded-full cursor-pointer }
         .card { @apply bg-white shadow-sm rounded-xl border p-4 }
 
+
+    .animate-ping { 
+        animation: ping 2s cubic-bezier(0.5, 0.4, 0.2, 1) infinite;
+    }
+
+    @keyframes ping {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.2);
+            opacity: 0.7;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
     </style>
 </head>
 
@@ -67,8 +86,11 @@
     <div x-data="demoapp">
         <header class="bg-gray-900 py-4 px-5 lg:p-4 lg:px-10 text-white sticky top-0 z-20">
             <div class="flex w-full justify-between items-center">
-                <p>VoiceAPI Demo</p>
-                <a href="https://github.com/ruzhila/voiceapi" class="hover:cursor-pointer">
+                <p class="gap-x-3">
+                    <span>VoiceAPI Demo</span> /
+                    <span>ruzhila.cn</span>
+                </p>
+                <a target="_blank" href="https://github.com/ruzhila/voiceapi" class="hover:cursor-pointer">
                     <svg t="1724996252746" class="icon" viewBox="0 0 1024 1024" version="1.1"
                         xmlns="http://www.w3.org/2000/svg" p-id="" width="25" height="25">
                         <path
@@ -76,31 +98,80 @@
                             fill="#ffffff"></path>
                     </svg>
                 </a>
-
             </div>
         </header>
 
-        <div class="lg:flex text-[15px]"></div>
-        <div class="relative">
-            <div class="">
-                <textarea x-model="text" class="round w-1/3 h-40" placeholder="Enter text here"></textarea>
-                <button @click="dotts" class="button bg-gray-900 mt-2">Speak</button>
-            </div>
-            <template x-if="recording">
-                <div
-                    class="absolute top-0 left-0 right-0 bottom-0 bg-gray-900 bg-opacity-50 flex items-center justify-center">
-                    <div class="bg-white p-4 rounded-lg">
-                        <p class="text-gray-900">Recording...</p>
-                    </div>
-                    <button @click="stopasr" class="button bg-gray-900 mt-2">Stop</button>
+        <div class="flex px-6 gap-x-10 w-full max-w-7xl mx-auto">
+            <div class="relative flex flex-col items-center w-1/3 py-10">
+                <div class="w-full">
+                    <textarea x-model="text" class="round p-4 w-full h-[36rem] text-sm"
+                        placeholder="Enter text here"></textarea>
                 </div>
-            </template>
-            <template x-if="!recording">
-                <button @click="doasr" class="button bg-gray-900 mt-2">Record</button>
-            </template>
+
+                <div>
+                    <button @click="dotts" :disabled="disabled"
+                        class="button bg-gray-900 flex items-center gap-x-2 mt-6">
+                        <span>Speak</span>
+                        <svg t="1726215464577" class="icon" viewBox="0 0 1024 1024" version="1.1"
+                            xmlns="http://www.w3.org/2000/svg" p-id="4263" width="20" height="20">
+                            <path
+                                d="M830.450526 853.759999q-11.722105 8.791579-27.351579 8.791579-19.536842 0-33.701053-14.164211t-14.164211-33.701053q0-21.490526 
+                   16.606316-36.143158 0.976842-0.976842 1.953684-1.465263t1.953684-1.465263l0.976842-0.976842q27.351579-18.56 50.795789-43.957895t41.027368-55.191579 27.351579-63.494737 9.768421-69.84421q0-73.263158-37.12-133.827368t-92.8-99.637895q-20.513684-14.652632-20.513684-39.073684 0-19.536842 14.164211-33.701053t33.701053-14.164211q16.606316 0 29.305263 10.745263 36.143158 25.397895 67.402105 59.098947t53.726316 73.263158 35.166316 84.496842 12.698947 92.8q0 48.842105-12.698947 93.776842t-35.654737 84.985263-54.214737 73.751579-68.378947 59.098947zM775.747368 415.157894q20.513684 28.328421 32.72421 57.145263t12.210526 69.84421q0 39.073684-12.698947 70.332632t-32.235789 56.656842q-7.814737 10.745263-16.606316 19.048421t-22.467368 8.303158q-17.583158 0-29.793684-12.698947t-12.210526-30.282105q0-7.814737 2.930526-15.629474l-0.976842 0q4.884211-10.745263 11.722105-20.513684t13.187368-20.025263 10.745263-23.444211 4.395789-31.747368q0-17.583158-4.395789-30.770526t-10.745263-23.932632-13.187368-20.513684-10.745263-20.513684q-2.930526-6.837895-2.930526-15.629474 0-17.583158 12.210526-30.282105t29.793684-12.698947q13.675789 0 22.467368 8.303158t16.606316 19.048421zM460.227368 995.402104q-49.818947-44.934737-105.498947-93.776842t-103.545263-89.869474q-55.68-46.888421-111.36-92.8-10.745263 0.976842-21.490526 0.976842-8.791579 0.976842-18.56 0.976842l-16.606316 0q-26.374737 0-42.981053-16.117895t-16.606316-38.585263l0-246.16421 0.976842 0-0.976842-0.976842q0-27.351579 17.094737-44.934737t42.492632-17.583158l55.68 0q89.869474-76.193684 163.132631-136.757895 31.258947-26.374737 61.541053-51.28421t54.703158-45.423158 41.027368-34.189474 20.513684-16.606316q29.305263-21.490526 47.376842-19.536842t28.328421 17.583158 14.164211 38.096842 3.907368 41.027368l0 788.311578 0 2.930526q0 18.56-6.837895 39.562105t-21.002105 33.212632-35.654737 10.256842-49.818947-28.328421z"
+                                p-id="4264" fill="#ffffff"></path>
+                        </svg>
+                    </button>
+                </div>
+                <template x-if="elapsedTime">
+                    <p x-text="`elapsedTime: ${elapsedTime}`" class="mt-4 text-sm text-gray-600 "></p>
+                </template>
+            </div>
+
+            <!-- recording  -->
+            <div class="w-full flex-grow h-[calc(100vh-10rem)] xl:pl-10 py-10">
+
+                <div
+                    class="rounded border border-gray-500 p-3 w-full flex flex-col items-end h-[36rem] overflow-y-auto">
+                    <template x-for="item in logs">
+                        <div class="mt-3 mb-2">
+                            <span
+                                class="text-white px-4 py-1.5 text-[13px] display-inline-block border border-gray-900 rounded-t-full rounded-l-full bg-gray-900 justify-end w-auto"
+                                x-text="item?.text">
+                            </span>
+                        </div>
+                    </template>
+                </div>
+
+
+                <template x-if="currentText">
+                    <p x-text="`${currentText} …`" class="text-gray-800 mt-4 text-sm text-center"></p>
+                </template>
+
+                <template x-if="!recording">
+                    <div class="flex flex-col gap-y-4 items-center justify-center mt-4">
+                        <p @click="doasr"
+                            class="mt-2 border border-gray-100 rounded-full duration-300 hover:scale-105 hover:border-gray-400">
+                            <img src="./images/record.svg" alt="" class="w-14 h-14 mx-auto cursor-pointer">
+                        </p>
+                        <p class="text-gray-600">Click to record !</p>
+                    </div>
+                </template>
+
+                <template x-if="recording">
+                    <div class="flex flex-col items-center justify-center gap-y-4 mt-4">
+
+                        <p @click="stopasr"
+                            class="mt-2 border border-red-100 rounded-full duration-300 hover:scale-105  hover:border-red-400">
+                            <img src="./images/speaking.svg" alt=""
+                                class="w-14 h-14 mx-auto cursor-pointer animate-ping">
+                        </p>
+                        <div class="flex items-center text-gray-600 gap-x-4">
+                            <p>Click to stop recording !</p>
+                        </div>
+                    </div>
+                </template>
+            </div>
         </div>
     </div>
     </div>
 </body>
-
 </html>
