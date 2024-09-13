@@ -1,14 +1,13 @@
-let audioContext = new AudioContext({ sampleRate: 16000 });
-audioContext.audioWorklet.addModule('audio_process.js').then(() => {
-    console.log('audio process worklet loaded');
-})
-
 const demoapp = {
     text: '您好，有什么我可以帮助您的吗？',
     recording: false,
     asrWS: null,
-
+    async init() {
+    },
     async dotts() {
+        let audioContext = new AudioContext({ sampleRate: 16000 })
+        await audioContext.audioWorklet.addModule('./audio_process.js')
+
         const ws = new WebSocket('/tts');
         ws.onopen = () => {
             ws.send(this.text);
@@ -27,7 +26,7 @@ const demoapp = {
                     playNode.port.postMessage({ message: 'audioData', audioData: float32Array });
                 });
             } else {
-                this.logit('ws message', e.data);
+                console.log(e.data)
             }
         }
     },
@@ -59,6 +58,9 @@ const demoapp = {
         ws.onmessage = (e) => {
             console.log(e.data);
         }
+
+        let audioContext = new AudioContext({ sampleRate: 16000 })
+        await audioContext.audioWorklet.addModule('./audio_process.js')
 
         const recordNode = new AudioWorkletNode(audioContext, 'record-audio-processor');
         recordNode.connect(audioContext.destination);

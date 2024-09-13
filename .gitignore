@@ -26,3 +26,4 @@ frpc.ini
 
 models/
 examples/*.wav
+models
