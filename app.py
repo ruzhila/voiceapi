@@ -1,9 +1,10 @@
 from typing import *
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import asyncio
 import logging
+from pydantic import BaseModel, Field
 import uvicorn
 from voiceapi.tts import TTSResult, start_tts_stream, TTSStream
 from voiceapi.asr import start_asr_stream, ASRStream, ASRResult
@@ -17,7 +18,8 @@ logger = logging.getLogger(__file__)
 
 @app.websocket("/asr")
 async def websocket_asr(websocket: WebSocket,
-                        samplerate: int = Query(16000)):
+                        samplerate: int = Query(16000, title="Sample Rate",
+                                                description="The sample rate of the audio."),):
     await websocket.accept()
 
     asr_stream: ASRStream = await start_asr_stream(samplerate, args)
@@ -49,10 +51,21 @@ async def websocket_asr(websocket: WebSocket,
 
 @app.websocket("/tts")
 async def websocket_tts(websocket: WebSocket,
-                        samplerate: int = Query(16000),
-                        interrput: bool = Query(True),
-                        sid: int = Query(0),
-                        chunk_size: int = Query(8192)):
+                        samplerate: int = Query(16000,
+                                                title="Sample Rate",
+                                                description="The sample rate of the generated audio."),
+                        interrupt: bool = Query(True,
+                                                title="Interrupt",
+                                                description="Interrupt the current TTS stream when a new text is received."),
+                        sid: int = Query(0,
+                                         title="Speaker ID",
+                                         description="The ID of the speaker to use for TTS."),
+                        chunk_size: int = Query(1024,
+                                                title="Chunk Size",
+                                                description="The size of the chunk to send to the client."),
+                        speed: float = Query(1.0,
+                                             title="Speed",
+                                             description="The speed of the generated audio.")):
 
     await websocket.accept()
     tts_stream: TTSStream = None
@@ -64,12 +77,12 @@ async def websocket_tts(websocket: WebSocket,
             if not text:
                 return
 
-            if interrput or not tts_stream:
+            if interrupt or not tts_stream:
                 if tts_stream:
                     await tts_stream.close()
-                    logger.info("tts: stream interrput")
+                    logger.info("tts: stream interrupt")
 
-                tts_stream = await start_tts_stream(sid, samplerate, args)
+                tts_stream = await start_tts_stream(sid, samplerate, speed, args)
                 if not tts_stream:
                     logger.error("tts: failed to allocate tts stream")
                     await websocket.close()
@@ -103,23 +116,33 @@ async def websocket_tts(websocket: WebSocket,
             await tts_stream.close()
 
 
-@app.post("/tts")
-async def tts_generate(request: Request):
-    data = await request.json()
-    text = data.get("text")
-    if not text:
+class TTSRequest(BaseModel):
+    text: str = Field(..., title="Text",
+                      description="The text to be converted to speech.",
+                      examples=["Hello, world!"])
+    sid: int = Field(0, title="Speaker ID",
+                     description="The ID of the speaker to use for TTS.")
+    samplerate: int = Field(16000, title="Sample Rate",
+                            description="The sample rate of the generated audio.")
+    speed: float = Field(1.0, title="Speed",
+                         description="The speed of the generated audio.")
+
+
+@ app.post("/tts",
+           description="Generate speech audio from text.",
+           response_class=StreamingResponse, responses={200: {"content": {"audio/wav": {}}}})
+async def tts_generate(req: TTSRequest):
+    if not req.text:
         raise HTTPException(status_code=400, detail="text is required")
 
-    sid = int(data.get("sid", '0'))
-    samplerate = int(data.get("samplerate", '16000'))
-
-    tts_stream = await start_tts_stream(sid, samplerate, args)
+    tts_stream = await start_tts_stream(req.sid, req.samplerate, req.speed,  args)
     if not tts_stream:
         raise HTTPException(
             status_code=500, detail="failed to start TTS stream")
 
-    r = await tts_stream.generate(sid, text, samplerate)
+    r = await tts_stream.generate(req.sid, req.text, req.samplerate)
     return StreamingResponse(r, media_type="audio/wav")
+
 
 if __name__ == "__main__":
     model_root = './models'

@@ -11,13 +11,14 @@ from scipy.signal import resample
 import io
 
 _tts_engine = None
+original_sample_rate = 44100
 logger = logging.getLogger(__file__)
 
 
 class TTSResult:
     def __init__(self, pcm_bytes: bytes, finished: bool):
         self.pcm_bytes = pcm_bytes
-        self.finished = False
+        self.finished = finished
         self.progress: float = 0.0
         self.elapsed: float = 0.0
         self.audio_duration: float = 0.0
@@ -38,19 +39,20 @@ class TTSStream:
         self.speed = speed
         self.outbuf: asyncio.Queue[TTSResult | None] = asyncio.Queue()
         self.is_closed = False
-        self.original_sample_rate = 44100
         self.target_sample_rate = sample_rate
 
     def on_process(self, chunk: np.ndarray, progress: float):
         if self.is_closed:
             return 0
-        # resample to 16k
-        num_samples = int(len(chunk) * self.target_sample_rate /
-                          self.original_sample_rate)
-        resampled_chunk = resample(chunk, num_samples)
-        resampled_chunk = resampled_chunk.astype(np.float32)
 
-        scaled_chunk = resampled_chunk * 32768.0
+        # resample to target sample rate
+        if self.target_sample_rate != original_sample_rate:
+            num_samples = int(
+                len(chunk) * self.target_sample_rate / original_sample_rate)
+            resampled_chunk = resample(chunk, num_samples)
+            chunk = resampled_chunk.astype(np.float32)
+
+        scaled_chunk = chunk * 32768.0
         clipped_chunk = np.clip(scaled_chunk, -32768, 32767)
         int16_chunk = clipped_chunk.astype(np.int16)
         samples = int16_chunk.tobytes()
@@ -122,6 +124,9 @@ def get_tts_config(args):
         if not os.path.exists(f):
             raise FileNotFoundError(f)
 
+    global original_sample_rate
+    original_sample_rate = 44100
+
     tts_config = sherpa_onnx.OfflineTtsConfig(
         model=sherpa_onnx.OfflineTtsModelConfig(
             vits=sherpa_onnx.OfflineTtsVitsModelConfig(
@@ -142,14 +147,15 @@ def get_tts_config(args):
 
 
 def get_tts_engine(args):
-    global _tts_engine
+    global _tts_engine, original_sample_rate
     if not _tts_engine:
         st = time.time()
         _tts_engine = sherpa_onnx.OfflineTts(get_tts_config(args))
+        print(_tts_engine)
         logger.info(f"tts: engine loaded in {time.time() - st:.2f}s")
     return _tts_engine
 
 
-async def start_tts_stream(sid: int, samplerate: int, args) -> TTSStream:
+async def start_tts_stream(sid: int, sample_rate: int, speed: float, args) -> TTSStream:
     get_tts_engine(args)
-    return TTSStream(sid)
+    return TTSStream(sid, speed, sample_rate)

@@ -5,13 +5,17 @@
 
 import argparse
 import logging
-import pyaudio
 import sherpa_onnx
 import os
 import time
 import struct
 import asyncio
 import soundfile
+
+try:
+    import pyaudio
+except ImportError:
+    raise ImportError('Please install pyaudio with `pip install pyaudio`')
 
 logger = logging.getLogger(__name__)
 SAMPLE_RATE = 16000
