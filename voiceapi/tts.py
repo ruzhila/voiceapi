@@ -81,12 +81,12 @@ class TTSStream:
                                          sid=self.sid,
                                          speed=self.speed,
                                          callback=self.on_process)
-            
+
             if not audio or not audio.sample_rate or not audio.samples:
-                logger.error(f"tts: failed to generate audio for '{
-                             text}' (audio={audio})")
+                logger.error(f"tts: failed to generate audio for "
+                             "'{text}' (audio={audio})")
                 continue
-            
+
             audio_duration += len(audio.samples) / audio.sample_rate
             audio_size += len(audio.samples)
             elapsed_seconds = time.time() - sub_start
