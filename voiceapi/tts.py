@@ -9,10 +9,13 @@ import time
 import soundfile
 from scipy.signal import resample
 import io
+import re
 
 _tts_engine = None
 original_sample_rate = 44100
 logger = logging.getLogger(__file__)
+
+splitter = re.compile(r'[,，。.!?！？;；、\n]')
 
 
 class TTSResult:
@@ -59,23 +62,39 @@ class TTSStream:
         self.outbuf.put_nowait(TTSResult(samples, False))
         return self.is_closed and 0 or 1
 
-    async def write(self, text: str, interrput: bool = False):
+    async def write(self, text: str, split: bool):
         start = time.time()
-        audio = _tts_engine.generate(text,
-                                     sid=self.sid,
-                                     speed=self.speed,
-                                     callback=self.on_process)
-        elapsed_seconds = time.time() - start
-        audio_duration = len(audio.samples) / audio.sample_rate
+        if split:
+            texts = re.split(splitter, text)
+        else:
+            texts = [text]
 
+        audio_duration = 0.0
+        audio_size = 0
+
+        for text in texts:
+            text = text.strip()
+            if not text:
+                continue
+            sub_start = time.time()
+            audio = _tts_engine.generate(text,
+                                         sid=self.sid,
+                                         speed=self.speed,
+                                         callback=self.on_process)
+            audio_duration += len(audio.samples) / audio.sample_rate
+            audio_size += len(audio.samples)
+            elapsed_seconds = time.time() - sub_start
+            logger.info(f"tts: generated audio for '{text}', "
+                        f"audio duration: {audio_duration:.2f}s, "
+                        f"elapsed: {elapsed_seconds:.2f}s")
+
+        elapsed_seconds = time.time() - start
         logger.info(f"tts: generated audio in {elapsed_seconds:.2f}s, "
-                    f"audio duration: {audio_duration:.2f}s, "
-                    f"sample rate: {audio.sample_rate}")
+                    f"audio duration: {audio_duration:.2f}s")
 
         r = TTSResult(None, True)
         r.elapsed = elapsed_seconds
         r.audio_duration = audio_duration
-        r.audio_size = len(audio.samples)
         r.progress = 1.0
         r.finished = True
         await self.outbuf.put(r)
@@ -83,6 +102,7 @@ class TTSStream:
     async def close(self):
         self.is_closed = True
         self.outbuf.put_nowait(None)
+        logger.info("tts: stream closed")
 
     async def read(self) -> TTSResult:
         return await self.outbuf.get()

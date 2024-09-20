@@ -65,7 +65,10 @@ async def websocket_tts(websocket: WebSocket,
                                                 description="The size of the chunk to send to the client."),
                         speed: float = Query(1.0,
                                              title="Speed",
-                                             description="The speed of the generated audio.")):
+                                             description="The speed of the generated audio."),
+                        split: bool = Query(True,
+                                            title="Split",
+                                            description="Split the text into sentences.")):
 
     await websocket.accept()
     tts_stream: TTSStream = None
@@ -87,8 +90,8 @@ async def websocket_tts(websocket: WebSocket,
                     logger.error("tts: failed to allocate tts stream")
                     await websocket.close()
                     return
-            logger.info(f"tts: received: {text}")
-            await tts_stream.write(text)
+            logger.info(f"tts: received: {text} (split={split})")
+            await tts_stream.write(text, split)
 
     async def task_send_pcm():
         nonlocal tts_stream
