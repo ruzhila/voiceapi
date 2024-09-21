@@ -74,7 +74,7 @@ class ASRStream:
 
 def create_zipformer(samplerate: int, args) -> sherpa_onnx.OnlineRecognizer:
     d = os.path.join(
-        args.model_root, 'sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20')
+        args.models_root, 'sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20')
     encoder = os.path.join(d, "encoder-epoch-99-avg-1.onnx")
     decoder = os.path.join(d, "decoder-epoch-99-avg-1.onnx")
     joiner = os.path.join(d, "joiner-epoch-99-avg-1.onnx")

@@ -12,7 +12,6 @@ import io
 import re
 
 _tts_engine = None
-original_sample_rate = 44100
 logger = logging.getLogger(__file__)
 
 splitter = re.compile(r'[,，。.!?！？;；、\n]')
@@ -37,21 +36,22 @@ class TTSResult:
 
 
 class TTSStream:
-    def __init__(self, sid: int, speed: float = 1.0, sample_rate: int = 16000):
+    def __init__(self, sid: int, speed: float = 1.0, sample_rate: int = 16000, original_sample_rate: int = 44100):
         self.sid = sid
         self.speed = speed
         self.outbuf: asyncio.Queue[TTSResult | None] = asyncio.Queue()
         self.is_closed = False
         self.target_sample_rate = sample_rate
+        self.original_sample_rate = original_sample_rate
 
     def on_process(self, chunk: np.ndarray, progress: float):
         if self.is_closed:
             return 0
 
         # resample to target sample rate
-        if self.target_sample_rate != original_sample_rate:
+        if self.target_sample_rate != self.original_sample_rate:
             num_samples = int(
-                len(chunk) * self.target_sample_rate / original_sample_rate)
+                len(chunk) * self.target_sample_rate / self.original_sample_rate)
             resampled_chunk = resample(chunk, num_samples)
             chunk = resampled_chunk.astype(np.float32)
 
@@ -144,25 +144,17 @@ class TTSStream:
 
 
 def get_tts_config(args):
-    model = os.path.join(args.model_root, 'vits-melo-tts-zh_en', 'model.onnx')
-    lexicon = os.path.join(
-        args.model_root, 'vits-melo-tts-zh_en', 'lexicon.txt')
-    dict_dir = os.path.join(args.model_root, 'vits-melo-tts-zh_en', 'dict')
-    tokens = os.path.join(args.model_root, 'vits-melo-tts-zh_en', 'tokens.txt')
-    for f in [model, lexicon, dict_dir, tokens]:
+    for f in [args.tts_model, args.tts_lexicon, args.tts_dict_dir, args.tts_tokens]:
         if not os.path.exists(f):
             raise FileNotFoundError(f)
-
-    global original_sample_rate
-    original_sample_rate = 44100
 
     tts_config = sherpa_onnx.OfflineTtsConfig(
         model=sherpa_onnx.OfflineTtsModelConfig(
             vits=sherpa_onnx.OfflineTtsVitsModelConfig(
-                model=model,
-                lexicon=lexicon,
-                dict_dir=dict_dir,
-                tokens=tokens,
+                model=args.tts_model,
+                lexicon=args.tts_lexicon,
+                dict_dir=args.tts_dict_dir,
+                tokens=args.tts_tokens,
             ),
             provider=args.provider,
             debug=0,
@@ -187,4 +179,4 @@ def get_tts_engine(args):
 
 async def start_tts_stream(sid: int, sample_rate: int, speed: float, args) -> TTSStream:
     get_tts_engine(args)
-    return TTSStream(sid, speed, sample_rate)
+    return TTSStream(sid, speed, sample_rate, args.tts_sample_rate)

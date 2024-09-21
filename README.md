@@ -81,9 +81,18 @@ Send text to the server, and the server will return the synthesized audio data.
 All models are stored in the `models` directory
 Only download the models you need. default models are:
 - asr models: `sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20`(Bilingual, Chinese + English)
-- tts models: `vits-melo-tts-zh_en` (Chinese + English)
+- tts models: `vits-zh-hf-theresa` (Chinese + English)
+
+## Build cuda image(For chinese users)
+```shell
+docker build -t voiceapi:cuda_dev -f Dockerfile.cuda.cn .
+```
 
 
+### vits-zh-hf-theresa
+```bash
+curl -SL -O https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-zh-hf-theresa.tar.bz2
+```
 
 ### vits-melo-tts-zh_en
 ```bash

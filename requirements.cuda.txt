@@ -1,4 +1,4 @@
-sherpa-onnx == 1.10.24
+onnxruntime-gpu == 1.19.2
 soundfile == 0.12.1
 fastapi == 0.114.1
 uvicorn == 0.30.6

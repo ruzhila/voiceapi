@@ -1,5 +1,5 @@
 const demoapp = {
-    text: 'Hello, how can I help you ?',
+    text: '讲个冷笑话吧，要很好笑的那种。',
     recording: false,
     asrWS: null,
     currentText: null,
