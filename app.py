@@ -143,7 +143,7 @@ async def tts_generate(req: TTSRequest):
         raise HTTPException(
             status_code=500, detail="failed to start TTS stream")
 
-    r = await tts_stream.generate(req.sid, req.text, req.samplerate)
+    r = await tts_stream.generate(req.text)
     return StreamingResponse(r, media_type="audio/wav")
 
 

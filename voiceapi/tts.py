@@ -72,15 +72,19 @@ class TTSStream:
         audio_duration = 0.0
         audio_size = 0
 
-        for text in texts:
+        for idx, text in enumerate(texts):
             text = text.strip()
             if not text:
                 continue
             sub_start = time.time()
-            audio = _tts_engine.generate(text,
-                                         sid=self.sid,
-                                         speed=self.speed,
-                                         callback=self.on_process)
+
+            audio = await asyncio.to_thread(_tts_engine.generate,
+                                            text, self.sid, self.speed,
+                                            self.on_process)
+
+            if split and idx < len(texts) - 1:  # add a pause between sentences
+                audio.samples = np.concatenate(
+                    [audio.samples, np.zeros(int(audio.sample_rate * 0.1))])
 
             if not audio or not audio.sample_rate or not audio.samples:
                 logger.error(f"tts: failed to generate audio for "
@@ -113,11 +117,10 @@ class TTSStream:
     async def read(self) -> TTSResult:
         return await self.outbuf.get()
 
-    async def generate(self, sid: int, text: str, samplerate: int, speed: float = 1.0) -> io.BytesIO:
+    async def generate(self,  text: str) -> io.BytesIO:
         start = time.time()
-        audio = _tts_engine.generate(text,
-                                     sid=sid,
-                                     speed=speed)
+        audio = await asyncio.to_thread(_tts_engine.generate,
+                                        text, self.sid, self.speed)
         elapsed_seconds = time.time() - start
         audio_duration = len(audio.samples) / audio.sample_rate
 
@@ -125,10 +128,10 @@ class TTSStream:
                     f"audio duration: {audio_duration:.2f}s, "
                     f"sample rate: {audio.sample_rate}")
 
-        if samplerate != audio.sample_rate:
+        if self.target_sample_rate != audio.sample_rate:
             audio.samples = resample(audio.samples,
-                                     int(len(audio.samples) * samplerate / audio.sample_rate))
-            audio.sample_rate = samplerate
+                                     int(len(audio.samples) * self.target_sample_rate / audio.sample_rate))
+            audio.sample_rate = self.target_sample_rate
 
         output = io.BytesIO()
         soundfile.write(output,
