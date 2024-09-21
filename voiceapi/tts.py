@@ -62,7 +62,7 @@ class TTSStream:
         self.outbuf.put_nowait(TTSResult(samples, False))
         return self.is_closed and 0 or 1
 
-    async def write(self, text: str, split: bool):
+    async def write(self, text: str, split: bool, pause: float = 0.2):
         start = time.time()
         if split:
             texts = re.split(splitter, text)
@@ -82,14 +82,14 @@ class TTSStream:
                                             text, self.sid, self.speed,
                                             self.on_process)
 
-            if split and idx < len(texts) - 1:  # add a pause between sentences
-                audio.samples = np.concatenate(
-                    [audio.samples, np.zeros(int(audio.sample_rate * 0.1))])
-
             if not audio or not audio.sample_rate or not audio.samples:
                 logger.error(f"tts: failed to generate audio for "
-                             "'{text}' (audio={audio})")
+                             f"'{text}' (audio={audio})")
                 continue
+
+            if split and idx < len(texts) - 1:  # add a pause between sentences
+                audio.samples = np.concatenate(
+                    [audio.samples, np.zeros(int(audio.sample_rate * pause))])
 
             audio_duration += len(audio.samples) / audio.sample_rate
             audio_size += len(audio.samples)
