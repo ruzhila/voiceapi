@@ -88,8 +88,9 @@ class TTSStream:
                 continue
 
             if split and idx < len(texts) - 1:  # add a pause between sentences
-                audio.samples = np.concatenate(
-                    [audio.samples, np.zeros(int(audio.sample_rate * pause))])
+                noise = np.zeros(int(audio.sample_rate * pause))
+                self.on_process(noise, 1.0)
+                audio.samples = np.concatenate([audio.samples, noise])
 
             audio_duration += len(audio.samples) / audio.sample_rate
             audio_size += len(audio.samples)
