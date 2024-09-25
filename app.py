@@ -155,49 +155,37 @@ if __name__ == "__main__":
             models_root = f'{d}/models'
             break
 
-    tts_configs = {
-        'vits-zh-hf-theresa': {
-            'model': os.path.join(models_root, 'vits-zh-hf-theresa', 'theresa.onnx'),
-            'lexicon': os.path.join(models_root, 'vits-zh-hf-theresa', 'lexicon.txt'),
-            'dict_dir': os.path.join(models_root, 'vits-zh-hf-theresa', 'dict'),
-            'tokens': os.path.join(models_root, 'vits-zh-hf-theresa', 'tokens.txt'),
-            'sample_rate': 22050
-        },
-        'vits-melo-tts-zh_en': {
-            'model': os.path.join(models_root, 'vits-melo-tts-zh_en', 'model.onnx'),
-            'lexicon': os.path.join(models_root, 'vits-melo-tts-zh_en', 'lexicon.txt'),
-            'dict_dir': os.path.join(models_root, 'vits-melo-tts-zh_en', 'dict'),
-            'tokens': os.path.join(models_root, 'vits-melo-tts-zh_en', 'tokens.txt'),
-            'sample_rate': 44100
-        },
-    }
-
-    default_tts_model = os.environ.get('TTS_MODEL', 'vits-zh-hf-theresa')
-    tm = tts_configs.get(default_tts_model)
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8000, help="port number")
     parser.add_argument("--addr", type=str,
                         default="0.0.0.0", help="serve address")
-    parser.add_argument("--provider", type=str,
-                        default="cpu", help="provider, cpu or cuda")
+
+    parser.add_argument("--asr-provider", type=str,
+                        default="cpu", help="asr provider, cpu or cuda")
+    parser.add_argument("--tts-provider", type=str,
+                        default="cpu", help="tts provider, cpu or cuda")
+
     parser.add_argument("--threads", type=int, default=2,
                         help="number of threads")
-    parser.add_argument("--models_root", type=str, default=models_root,
+
+    parser.add_argument("--models-root", type=str, default=models_root,
                         help="model root directory")
 
-    parser.add_argument("--tts_model", type=str, default=tm['model'],
-                        help="TTS model onnx file")
-    parser.add_argument("--tts_lexicon", type=str, default=tm['lexicon'],
-                        help="TTS lexicon file")
-    parser.add_argument("--tts_dict_dir", type=str, default=tm['dict_dir'],
-                        help="TTS dict directory")
-    parser.add_argument("--tts_tokens", type=str, default=tm['tokens'],
-                        help="TTS tokens file")
-    parser.add_argument("--tts_sample_rate", type=int, default=tm['sample_rate'],
-                        help="TTS samplerate")
+    parser.add_argument("--asr-model", type=str, default='sensevoice',
+                        help="ASR model name, zipformer-bilingual or sensevoice")
+
+    parser.add_argument("--asr-lang", type=str, default='zh',
+                        help="ASR language, zh, en, ja, ko, yue")
+
+    parser.add_argument("--tts-model", type=str, default='vits-zh-hf-theresa',
+                        help="TTS model name, vits-zh-hf-theresa or vits-melo-tts-zh_en")
 
     args = parser.parse_args()
+
+    if args.tts_model == 'vits-melo-tts-zh_en' and args.tts_provider == 'cuda':
+        logger.warning(
+            "vits-melo-tts-zh_en does not support CUDA fallback to CPU")
+        args.tts_provider = 'cpu'
 
     app.mount("/", app=StaticFiles(directory="./assets", html=True), name="assets")
 
