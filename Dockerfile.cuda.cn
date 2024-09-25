@@ -10,4 +10,4 @@ ADD requirements.cuda.txt /app/
 RUN pip3 install -r requirements.cuda.txt
 
 ADD . /app/
-ENTRYPOINT ["python3", "app.py", "--provider", "cuda"]
+ENTRYPOINT ["python3", "app.py"]
