@@ -148,6 +148,42 @@ def create_sensevoice(samplerate: int, args) -> sherpa_onnx.OfflineRecognizer:
     return recognizer
 
 
+def create_paraformer_trilingual(samplerate: int, args) -> sherpa_onnx.OnlineRecognizer:
+    d = os.path.join(
+        args.models_root, 'sherpa-onnx-paraformer-trilingual-zh-cantonese-en')
+    if not os.path.exists(d):
+        raise ValueError(f"asr: model not found {d}")
+
+    recognizer = sherpa_onnx.OfflineRecognizer.from_paraformer(
+        paraformer=os.path.join(d, 'model.onnx'),
+        tokens=os.path.join(d, 'tokens.txt'),
+        num_threads=args.threads,
+        sample_rate=samplerate,
+        use_itn=True,
+        debug=0,
+        provider=args.asr_provider,
+    )
+    return recognizer
+
+
+def create_paraformer_en(samplerate: int, args) -> sherpa_onnx.OnlineRecognizer:
+    d = os.path.join(
+        args.models_root, 'sherpa-onnx-paraformer-en')
+    if not os.path.exists(d):
+        raise ValueError(f"asr: model not found {d}")
+
+    recognizer = sherpa_onnx.OfflineRecognizer.from_paraformer(
+        paraformer=os.path.join(d, 'model.onnx'),
+        tokens=os.path.join(d, 'tokens.txt'),
+        num_threads=args.threads,
+        sample_rate=samplerate,
+        use_itn=True,
+        debug=0,
+        provider=args.asr_provider,
+    )
+    return recognizer
+
+
 def load_asr_engine(samplerate: int, args) -> sherpa_onnx.OnlineRecognizer:
     cache_engine = _asr_engines.get(args.asr_model)
     if cache_engine:
@@ -157,6 +193,12 @@ def load_asr_engine(samplerate: int, args) -> sherpa_onnx.OnlineRecognizer:
         cache_engine = create_zipformer(samplerate, args)
     elif args.asr_model == 'sensevoice':
         cache_engine = create_sensevoice(samplerate, args)
+        _asr_engines['vad'] = load_vad_engine(samplerate, args)
+    elif args.asr_model == 'paraformer-trilingual':
+        cache_engine = create_paraformer_trilingual(samplerate, args)
+        _asr_engines['vad'] = load_vad_engine(samplerate, args)
+    elif args.asr_model == 'paraformer-en':
+        cache_engine = create_paraformer_en(samplerate, args)
         _asr_engines['vad'] = load_vad_engine(samplerate, args)
     else:
         raise ValueError(f"asr: unknown model {args.asr_model}")
