@@ -1,5 +1,8 @@
 # voiceapi - A simple and clean voice transcription/synthesis API with sherpa-onnx
 
+Thanks to [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), we can easily build a voice API with Python.
+<img src="./screenshot.jpg" width="60%">
+
 ## Supported models
 | Model                                  | Language                      | Type        | Description                         |
 | -------------------------------------- | ----------------------------- | ----------- | ----------------------------------- |
@@ -10,11 +13,9 @@
 | vits-zh-hf-theresa                     | Chinese                       | TTS         | VITS, Chinese, 804 speakers         |
 | melo-tts-zh_en                         | Chinese + English             | TTS         | Melo, Chinese + English, 1 speakers |
 
-## How to use
-Thanks to [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), we can easily build a voice API with Python.
-<img src="./screenshot.jpg" width="60%">
+## Run the app locally
+Python 3.10+ is required
 
-## Run the app (only tested on Linux/MacOS with CPU)
 ```shell
 python3 -m venv venv
 . venv/bin/activate
@@ -23,14 +24,14 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Visit `http://localhost:8000/` to see the Demo page
+Visit `http://localhost:8000/` to see the demo page
 
-## Build cuda image(For chinese users)
+## Build cuda image (for Chinese users)
 ```shell
 docker build -t voiceapi:cuda_dev -f Dockerfile.cuda.cn .
 ```
 
-## Streaming API (Via Websocket)
+## Streaming API (via WebSocket)
 ### /asr 
 Send PCM 16bit audio data to the server, and the server will return the transcription result.
 - `samplerate` can be set in the query string, default is 16000. 
@@ -100,9 +101,11 @@ The server will return the synthesized audio data in binary format.
 #### /tts 
 Send text to the server, and the server will return the synthesized audio data.
 
+- `text` is the text to be synthesized.
 - `samplerate` can be set in the query string, default is 16000.
 - `sid` is the Speaker ID, default is 0.
-- `text` is the speed of the synthesized audio, default is 1.0.
+- `speed` is the speed of the synthesized audio, default is 1.0.
+- 
 ```shell
 curl -X POST "http://localhost:8000/tts" \
      -H "Content-Type: application/json" \
