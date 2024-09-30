@@ -159,7 +159,6 @@ def create_paraformer_trilingual(samplerate: int, args) -> sherpa_onnx.OnlineRec
         tokens=os.path.join(d, 'tokens.txt'),
         num_threads=args.threads,
         sample_rate=samplerate,
-        use_itn=True,
         debug=0,
         provider=args.asr_provider,
     )
