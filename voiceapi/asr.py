@@ -12,13 +12,15 @@ _asr_engines = {}
 
 
 class ASRResult:
-    def __init__(self, text: str, finished: bool, idx: int):
+    def __init__(self, text: str, finished: bool, idx: int, start: float = 0.0, end: float = 0.0):
         self.text = text
         self.finished = finished
         self.idx = idx
+        self.start = start
+        self.end = end
 
     def to_dict(self):
-        return {"text": self.text, "finished": self.finished, "idx": self.idx}
+        return {"text": self.text, "finished": self.finished, "idx": self.idx, "start": self.start, "end": self.end}
 
 
 class ASRStream:
@@ -67,26 +69,27 @@ class ASRStream:
     async def run_offline(self):
         vad = _asr_engines['vad']
         segment_id = 0
-        st = None
+        total_samples = 0
         while not self.is_closed:
             samples = await self.inbuf.get()
             vad.accept_waveform(samples)
             while not vad.empty():
-                if not st:
-                    st = time.time()
+                segment_samples = vad.front.samples
+                start_time = total_samples / self.sample_rate
+                end_time = (total_samples + len(segment_samples)) / self.sample_rate
+                total_samples += len(segment_samples)
+                
                 stream = self.recognizer.create_stream()
-                stream.accept_waveform(self.sample_rate, vad.front.samples)
+                stream.accept_waveform(self.sample_rate, segment_samples)
 
                 vad.pop()
                 self.recognizer.decode_stream(stream)
 
                 result = stream.result.text.strip()
                 if result:
-                    duration = time.time() - st
-                    logger.info(f'{segment_id}:{result} ({duration:.2f}s)')
-                    self.outbuf.put_nowait(ASRResult(result, True, segment_id))
+                    logger.info(f'{segment_id}:{result} ({start_time:.2f}s - {end_time:.2f}s)')
+                    self.outbuf.put_nowait(ASRResult(result, True, segment_id, start_time, end_time))
                     segment_id += 1
-            st = None
 
     async def close(self):
         self.is_closed = True
@@ -136,8 +139,41 @@ def create_sensevoice(samplerate: int, args) -> sherpa_onnx.OfflineRecognizer:
     if not os.path.exists(d):
         raise ValueError(f"asr: model not found {d}")
 
+    # prefer explicit int8 model file if present (backwards compatible)
+    model_path = os.path.join(d, 'model.onnx')
+    if os.path.exists(os.path.join(d, 'model.int8.onnx')):
+        model_path = os.path.join(d, 'model.int8.onnx')
+
     recognizer = sherpa_onnx.OfflineRecognizer.from_sense_voice(
-        model=os.path.join(d, 'model.onnx'),
+        model=model_path,
+        tokens=os.path.join(d, 'tokens.txt'),
+        num_threads=args.threads,
+        sample_rate=samplerate,
+        use_itn=True,
+        debug=0,
+        language=args.asr_lang,
+    )
+    return recognizer
+
+
+def create_sensevoice_int8(samplerate: int, args) -> sherpa_onnx.OfflineRecognizer:
+    """
+    Load the int8 variant of SenseVoice if available. This function will try
+    to load `model.int8.onnx` first and fall back to `model.onnx` if needed.
+    """
+    d = os.path.join(args.models_root,
+                     'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09')
+
+    if not os.path.exists(d):
+        raise ValueError(f"asr: model not found {d}")
+
+    # prefer explicit int8 model file but accept model.onnx if that's what user has
+    model_path = os.path.join(d, 'model.int8.onnx')
+    if not os.path.exists(model_path):
+        model_path = os.path.join(d, 'model.onnx')
+
+    recognizer = sherpa_onnx.OfflineRecognizer.from_sense_voice(
+        model=model_path,
         tokens=os.path.join(d, 'tokens.txt'),
         num_threads=args.threads,
         sample_rate=samplerate,
@@ -213,6 +249,9 @@ def load_asr_engine(samplerate: int, args) -> sherpa_onnx.OnlineRecognizer:
     elif args.asr_model == 'sensevoice':
         cache_engine = create_sensevoice(samplerate, args)
         _asr_engines['vad'] = load_vad_engine(samplerate, args)
+    elif args.asr_model == 'sensevoice-int8':
+        cache_engine = create_sensevoice_int8(samplerate, args)
+        _asr_engines['vad'] = load_vad_engine(samplerate, args)
     elif args.asr_model == 'paraformer-trilingual':
         cache_engine = create_paraformer_trilingual(samplerate, args)
         _asr_engines['vad'] = load_vad_engine(samplerate, args)
@@ -254,3 +293,27 @@ async def start_asr_stream(samplerate: int, args) -> ASRStream:
     stream = ASRStream(load_asr_engine(samplerate, args), samplerate)
     await stream.start()
     return stream
+
+async def process_asr_file(samples: np.ndarray, samplerate: int, args) -> List[ASRResult]:
+    recognizer = load_asr_engine(samplerate, args)
+    vad = load_vad_engine(samplerate, args)
+    results = []
+    segment_id = 0
+    total_samples = 0
+    vad.accept_waveform(samples)
+    while not vad.empty():
+        segment_samples = vad.front.samples
+        start_time = total_samples / samplerate
+        end_time = (total_samples + len(segment_samples)) / samplerate
+        total_samples += len(segment_samples)
+        
+        stream = recognizer.create_stream()
+        stream.accept_waveform(samplerate, segment_samples)
+        recognizer.decode_stream(stream)
+        
+        result_text = stream.result.text.strip()
+        if result_text:
+            results.append(ASRResult(result_text, True, segment_id, start_time, end_time))
+            segment_id += 1
+        vad.pop()
+    return results

@@ -4,15 +4,16 @@ Thanks to [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), we can ea
 <img src="./screenshot.jpg" width="60%">
 
 ## Supported models
-| Model                                  | Language                      | Type        | Description                         |
-| -------------------------------------- | ----------------------------- | ----------- | ----------------------------------- |
-| zipformer-bilingual-zh-en-2023-02-20   | Chinese + English             | Online ASR  | Streaming Zipformer, Bilingual      |
-| sense-voice-zh-en-ja-ko-yue-2024-07-17 | Chinese + English             | Offline ASR | SenseVoice, Bilingual               |
-| paraformer-trilingual-zh-cantonese-en  | Chinese + Cantonese + English | Offline ASR | Paraformer, Trilingual              |
-| paraformer-en-2024-03-09               | English                       | Offline ASR | Paraformer, English                 |
-| vits-zh-hf-theresa                     | Chinese                       | TTS         | VITS, Chinese, 804 speakers         |
-| melo-tts-zh_en                         | Chinese + English             | TTS         | Melo, Chinese + English, 1 speakers |
-| kokoro-multi-lang-v1_0                 | Chinese + English             | TTS         | Chinese + English, 53 speakers      |
+| Model                                       | Language                      | Type        | Description                         |
+| ------------------------------------------- | ----------------------------- | ----------- | ----------------------------------- |
+| zipformer-bilingual-zh-en-2023-02-20        | Chinese + English             | Online ASR  | Streaming Zipformer, Bilingual      |
+| sense-voice-zh-en-ja-ko-yue-2024-07-17      | Chinese + English             | Offline ASR | SenseVoice, Bilingual               |
+| sense-voice-zh-en-ja-ko-yue-int8-2025-09-09 | Chinese + English             | Offline ASR | SenseVoice-small(int8), Bilingual   |
+| paraformer-trilingual-zh-cantonese-en       | Chinese + Cantonese + English | Offline ASR | Paraformer, Trilingual              |
+| paraformer-en-2024-03-09                    | English                       | Offline ASR | Paraformer, English                 |
+| vits-zh-hf-theresa                          | Chinese                       | TTS         | VITS, Chinese, 804 speakers         |
+| melo-tts-zh_en                              | Chinese + English             | TTS         | Melo, Chinese + English, 1 speakers |
+| kokoro-multi-lang-v1_0                      | Chinese + English             | TTS         | Chinese + English, 53 speakers      |
 
 ## Run the app locally
 Python 3.10+ is required
@@ -117,6 +118,27 @@ curl -X POST "http://localhost:8000/tts" \
          }' -o helloworkd.wav
 ```
 
+### File Upload API
+#### /asr_file
+Send an audio file (wav or ogg) to the server, and the server will return the transcription with timestamps for each segment.
+
+- `file`: The audio file to transcribe (wav or ogg).
+- `samplerate`: Target sample rate for processing, default is 16000.
+
+The server will return the transcription results in JSON format, with the following fields:
+- `segments`: An array of transcription segments, each containing:
+  - `text`: The transcribed text for the segment.
+  - `finished`: Always true for file processing.
+  - `idx`: The index of the segment.
+  - `start`: The start time of the segment in seconds.
+  - `end`: The end time of the segment in seconds.
+
+```shell
+curl -X POST "http://localhost:8000/asr_file" \
+     -F "file=@audio.wav" \
+     -o result.json
+```
+
 ## Download models
 All models are stored in the `models` directory
 Only download the models you need. default models are:
@@ -165,6 +187,11 @@ curl -SL -O https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/s
 ### sensevoice
 ```bash
 curl -SL -O https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2
+```
+
+### sensevoice-small(int8)
+```bash
+curl -SL -O https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2
 ```
 
 ### sherpa-onnx-streaming-paraformer-bilingual-zh-en

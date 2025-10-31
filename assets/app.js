@@ -6,6 +6,8 @@ const demoapp = {
     disabled: false,
     elapsedTime: null,
     logs: [{ idx: 0, text: 'Happily here at ruzhila.cn.' }],
+    file: null,
+    fileResults: [],
     async init() {
     },
     async dotts() {
@@ -95,5 +97,32 @@ const demoapp = {
         source.connect(recordNode);
         this.asrWS = ws;
         this.recording = true;
+    },
+
+    async uploadFile() {
+        if (!this.file) {
+            alert('Please select a file first.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', this.file);
+
+        try {
+            const response = await fetch('/asr_file', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            this.fileResults = result.segments;
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            alert('Error uploading file: ' + error.message);
+        }
     }
 }

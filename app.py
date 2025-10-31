@@ -1,5 +1,4 @@
-from typing import *
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import asyncio
@@ -7,10 +6,14 @@ import logging
 from pydantic import BaseModel, Field
 import uvicorn
 from voiceapi.tts import TTSResult, start_tts_stream, TTSStream
-from voiceapi.asr import start_asr_stream, ASRStream, ASRResult
+from voiceapi.asr import start_asr_stream, ASRStream, ASRResult, process_asr_file
 import logging
 import argparse
 import os
+import soundfile as sf
+import io
+import numpy as np
+from scipy.signal import resample
 
 app = FastAPI()
 logger = logging.getLogger(__file__)
@@ -147,6 +150,29 @@ async def tts_generate(req: TTSRequest):
     return StreamingResponse(r, media_type="audio/wav")
 
 
+@app.post("/asr_file",
+          description="Transcribe an uploaded audio file and return timestamped segments.",
+          responses={200: {"description": "Transcription results with timestamps"}})
+async def asr_file_endpoint(file: UploadFile = File(...), samplerate: int = Query(16000, description="Target sample rate for processing")):
+    if not file.filename.lower().endswith(('.wav', '.ogg')):
+        raise HTTPException(status_code=400, detail="Unsupported file format. Currently supports wav and ogg.")
+
+    file_data = await file.read()
+    try:
+        data, sr = sf.read(io.BytesIO(file_data))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read audio file: {str(e)}")
+
+    if sr != samplerate:
+        data = resample(data, int(len(data) * samplerate / sr))
+
+    if data.ndim > 1:
+        data = data.mean(axis=1)
+
+    results = await process_asr_file(data.astype(np.float32), samplerate, args)
+    return {"segments": [r.to_dict() for r in results]}
+
+
 if __name__ == "__main__":
     models_root = './models'
 
@@ -172,7 +198,7 @@ if __name__ == "__main__":
                         help="model root directory")
 
     parser.add_argument("--asr-model", type=str, default='sensevoice',
-                        help="ASR model name: zipformer-bilingual, sensevoice, paraformer-trilingual, paraformer-en, fireredasr")
+                        help="ASR model name: zipformer-bilingual, sensevoice, sensevoice-int8, paraformer-trilingual, paraformer-en, fireredasr")
 
     parser.add_argument("--asr-lang", type=str, default='zh',
                         help="ASR language, zh, en, ja, ko, yue")
