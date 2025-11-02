@@ -1,14 +1,13 @@
 # voiceapi - A simple and clean voice transcription/synthesis API with sherpa-onnx
 
 Thanks to [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), we can easily build a voice API with Python.
-<img src="./screenshot.jpg" width="60%">
+<img src="./screenshot.png" width="60%">
 
 ## Supported models
 | Model                                       | Language                      | Type        | Description                         |
 | ------------------------------------------- | ----------------------------- | ----------- | ----------------------------------- |
 | zipformer-bilingual-zh-en-2023-02-20        | Chinese + English             | Online ASR  | Streaming Zipformer, Bilingual      |
 | sense-voice-zh-en-ja-ko-yue-2024-07-17      | Chinese + English             | Offline ASR | SenseVoice, Bilingual               |
-| sense-voice-zh-en-ja-ko-yue-int8-2025-09-09 | Chinese + English             | Offline ASR | SenseVoice-small(int8), Bilingual   |
 | paraformer-trilingual-zh-cantonese-en       | Chinese + Cantonese + English | Offline ASR | Paraformer, Trilingual              |
 | paraformer-en-2024-03-09                    | English                       | Offline ASR | Paraformer, English                 |
 | vits-zh-hf-theresa                          | Chinese                       | TTS         | VITS, Chinese, 804 speakers         |
@@ -120,9 +119,9 @@ curl -X POST "http://localhost:8000/tts" \
 
 ### File Upload API
 #### /asr_file
-Send an audio file (wav or ogg) to the server, and the server will return the transcription with timestamps for each segment.
+Send an audio file (wav, mp3 or ogg) to the server, and the server will return the transcription with timestamps for each segment.
 
-- `file`: The audio file to transcribe (wav or ogg).
+- `file`: The audio file to transcribe (wav,mp3 or ogg).
 - `samplerate`: Target sample rate for processing, default is 16000.
 
 The server will return the transcription results in JSON format, with the following fields:
@@ -132,6 +131,7 @@ The server will return the transcription results in JSON format, with the follow
   - `idx`: The index of the segment.
   - `start`: The start time of the segment in seconds.
   - `end`: The end time of the segment in seconds.
+  - `channel`: The index of the channel.
 
 ```shell
 curl -X POST "http://localhost:8000/asr_file" \
@@ -187,11 +187,6 @@ curl -SL -O https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/s
 ### sensevoice
 ```bash
 curl -SL -O https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2
-```
-
-### sensevoice-small(int8)
-```bash
-curl -SL -O https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2
 ```
 
 ### sherpa-onnx-streaming-paraformer-bilingual-zh-en

@@ -14,6 +14,9 @@ import soundfile as sf
 import io
 import numpy as np
 from scipy.signal import resample
+from typing import List
+import time
+import copy
 
 app = FastAPI()
 logger = logging.getLogger(__file__)
@@ -153,24 +156,54 @@ async def tts_generate(req: TTSRequest):
 @app.post("/asr_file",
           description="Transcribe an uploaded audio file and return timestamped segments.",
           responses={200: {"description": "Transcription results with timestamps"}})
-async def asr_file_endpoint(file: UploadFile = File(...), samplerate: int = Query(16000, description="Target sample rate for processing")):
-    if not file.filename.lower().endswith(('.wav', '.ogg')):
+async def asr_file_endpoint(file: UploadFile = File(...),
+                            samplerate: int = Query(16000, description="Target sample rate for processing"),
+                            use_int8: bool = Query(False, description="Use the SenseVoice int8 model for offline ASR")):
+    if not file.filename.lower().endswith(('.mp3', '.wav', '.ogg')):
         raise HTTPException(status_code=400, detail="Unsupported file format. Currently supports wav and ogg.")
-
+    start_time = time.time()
     file_data = await file.read()
+    
     try:
         data, sr = sf.read(io.BytesIO(file_data))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read audio file: {str(e)}")
 
     if sr != samplerate:
-        data = resample(data, int(len(data) * samplerate / sr))
+        target_samples = int(data.shape[0] * samplerate / sr)
+        data = resample(data, target_samples, axis=0)
 
-    if data.ndim > 1:
-        data = data.mean(axis=1)
+    if data.ndim == 1:
+        channels = [(0, data)]
+    else:
+        channels = [(idx, data[:, idx]) for idx in range(data.shape[1])]
 
-    results = await process_asr_file(data.astype(np.float32), samplerate, args)
-    return {"segments": [r.to_dict() for r in results]}
+    selected_args = args
+    if use_int8:
+        selected_args = copy.copy(args)
+        selected_args.asr_model = 'sensevoice-int8'
+
+    all_results: List[ASRResult] = []
+    for channel_idx, channel_samples in channels:
+        channel_results = await process_asr_file(np.asarray(channel_samples, dtype=np.float32), samplerate, selected_args, channel=channel_idx)
+        all_results.extend(channel_results)
+
+    all_results.sort(key=lambda r: (r.start, r.channel or 0))
+    for idx, result in enumerate(all_results):
+        result.idx = idx
+
+    elapsed = time.time() - start_time
+    audio_duration = float(data.shape[0]) / samplerate if samplerate > 0 else None
+    rtf = (elapsed / audio_duration) if audio_duration and audio_duration > 0 else None
+
+    return {
+        "elapsed": elapsed,
+        "data_length": len(file_data),
+        "audio_duration": audio_duration,
+        "rtf": rtf,
+        "asr_model": selected_args.asr_model,
+        "segments": [r.to_dict() for r in all_results]
+    }
 
 
 if __name__ == "__main__":
